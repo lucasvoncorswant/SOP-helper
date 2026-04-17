@@ -7,7 +7,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
-    "index:sops": "tsx src/cli/index-sops.ts"
+    "index:sops": "tsx src/cli/index-sops.ts",
+    "match-ticket": "tsx src/cli/match-ticket.ts"
   },
   "engines": {
     "node": ">=20"

@@ -20,6 +20,18 @@ export const config = {
   confluenceApiToken: () => required("CONFLUENCE_API_TOKEN"),
   /** CQL used to find SOP pages, e.g. space = TEAM and label = sop */
   confluenceSopCql: () => required("CONFLUENCE_SOP_CQL"),
+  /**
+   * Comma-separated Confluence page IDs of “folder” root pages. When set, results are
+   * limited to those pages and every descendant (all nested pages under each root).
+   */
+  confluenceSopRootPageIds: (): string[] => {
+    const raw = process.env.CONFLUENCE_SOP_ROOT_PAGE_IDS;
+    if (!raw?.trim()) return [];
+    return raw
+      .split(",")
+      .map((s) => s.trim())
+      .filter((id) => /^\d+$/.test(id));
+  },
 
   slackBotToken: () => required("SLACK_BOT_TOKEN"),
   slackSigningSecret: () => required("SLACK_SIGNING_SECRET"),

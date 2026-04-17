@@ -11,7 +11,7 @@ Service that indexes Standard Operating Procedures from **Confluence** with **Op
 ## Setup
 
 1. Copy `.env.example` to `.env` and fill in values (see inline comments).
-2. **Confluence**: use an API token tied to your Atlassian account; set `CONFLUENCE_SOP_CQL` to match only SOP pages (labels, space, etc.).
+2. **Confluence**: use an API token tied to your Atlassian account; set `CONFLUENCE_SOP_CQL` to match only SOP pages (labels, space, etc.). Optionally set **`CONFLUENCE_SOP_ROOT_PAGE_IDS`** to one or more numeric **folder** page IDs (from the page URL or page info) to index only that page and everything nested under it (all subfolders).
 3. **Slack app**: install to workspace; enable **Socket Mode** for local runs (add `SLACK_APP_TOKEN`). Grant bot scopes such as `channels:history` (or `groups:history` for private channels), `chat:write`, and subscribe to **`message.channels`** (and/or `message.groups` for private channels) under **Event Subscriptions**.
 4. **Index once** (or on a schedule in production):
 
@@ -28,6 +28,28 @@ Service that indexes Standard Operating Procedures from **Confluence** with **Op
 
    Or `npm run build && npm start`.
 
+### Manual ticket match (no Slack)
+
+Use the same embedding + vector index as production, without installing the Slack app:
+
+1. Index SOPs once: `npm run index:sops`
+2. Run a ticket through the matcher (multi-line is easiest with a pipe or heredoc):
+
+   ```bash
+   pbpaste | npm run match-ticket
+   npm run match-ticket < ./ticket.txt
+   npm run match-ticket <<'EOF'
+   Urgency: high
+   Team: CRM
+   Summary: Example issue
+   Description: Full details here
+   EOF
+   ```
+
+   One line works too: `npm run match-ticket -- "short question here"`.
+
+Only **`OPENAI_API_KEY`** and vector settings (e.g. **`LOCAL_VECTOR_PATH`**) are required for this command; Slack and Confluence variables are not read unless you run indexing or the Slack server.
+
 ## Configuration notes
 
 - **`SLACK_SUPPORT_CHANNEL_ID`**: If set, only messages in that channel trigger matching. If omitted, any channel the bot is in will trigger (use with care). Channel IDs appear in Slack URLs (`…/archives/C0AT8QGTV8X` → `C0AT8QGTV8X`).
@@ -41,5 +63,6 @@ Service that indexes Standard Operating Procedures from **Confluence** with **Op
 | Script | Purpose |
 |--------|---------|
 | `npm run index:sops` | Full reindex from Confluence |
+| `npm run match-ticket` | Match pasted/piped ticket text to SOPs (no Slack) |
 | `npm run dev` | Run Slack app with `tsx watch` |
 | `npm start` | Run compiled `dist/index.js` |

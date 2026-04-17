@@ -1,5 +1,25 @@
 import { config } from "./config.js";
 
+/**
+ * Combines the configured CQL with an optional subtree scope: Confluence “folders” are
+ * pages; limiting to a folder means matching that page id plus any descendant via `ancestor`.
+ * Each root uses `(ancestor = id or id = id)` so the folder page itself is included.
+ */
+export function buildSopSearchCql(): string {
+  const base = config.confluenceSopCql().trim();
+  const roots = config.confluenceSopRootPageIds();
+  if (roots.length === 0) return base;
+
+  const scope =
+    roots.length === 1
+      ? `(ancestor = ${roots[0]} or id = ${roots[0]})`
+      : `(${roots
+          .map((id) => `(ancestor = ${id} or id = ${id})`)
+          .join(" or ")})`;
+  if (!base) return `type = page and ${scope}`;
+  return `(${base}) and ${scope}`;
+}
+
 export type ConfluencePage = {
   id: string;
   title: string;
@@ -70,7 +90,7 @@ async function fetchPageBody(pageId: string): Promise<string> {
  */
 export async function fetchSopPages(): Promise<ConfluencePage[]> {
   const wiki = baseWikiUrl();
-  const cql = config.confluenceSopCql();
+  const cql = buildSopSearchCql();
   const limit = 50;
   const pages: ConfluencePage[] = [];
   let start = 0;

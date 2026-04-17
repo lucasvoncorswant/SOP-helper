@@ -29,6 +29,14 @@ export const config = {
   /** If true, also match on replies inside threads (default: false = root messages only) */
   slackProcessThreadReplies: () =>
     optional("SLACK_PROCESS_THREAD_REPLIES", "false") === "true",
+  /**
+   * If true, process messages from bots / subtype bot_message (e.g. Slack Workflow posting tickets).
+   * Set SLACK_APP_ID to avoid reacting to this app's own messages.
+   */
+  slackAllowBotTickets: () =>
+    optional("SLACK_ALLOW_BOT_TICKETS", "false") === "true",
+  /** When set, ignore messages whose app_id matches (prevents loops when SLACK_ALLOW_BOT_TICKETS is true) */
+  slackAppId: () => process.env.SLACK_APP_ID,
 
   vectorBackend: () =>
     optional("VECTOR_BACKEND", "local") as "local" | "pinecone",

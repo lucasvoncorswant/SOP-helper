@@ -30,8 +30,10 @@ Service that indexes Standard Operating Procedures from **Confluence** with **Op
 
 ## Configuration notes
 
-- **`SLACK_SUPPORT_CHANNEL_ID`**: If set, only messages in that channel trigger matching. If omitted, any channel the bot is in will trigger (use with care).
+- **`SLACK_SUPPORT_CHANNEL_ID`**: If set, only messages in that channel trigger matching. If omitted, any channel the bot is in will trigger (use with care). Channel IDs appear in Slack URLs (`…/archives/C0AT8QGTV8X` → `C0AT8QGTV8X`).
 - **`SLACK_PROCESS_THREAD_REPLIES`**: Default `false` so only **top-level** messages are treated as new tickets. Set `true` to also match replies inside threads.
+- **Structured tickets**: Messages that look like “Request Tech Support” with `Urgency` / `Team` / `Summary` / `Description` are normalized before embedding so boilerplate does not dominate the match (the model sees mainly those fields).
+- **Workflow / bot posts**: If tickets are posted by Slack Workflow as `bot_message`, set **`SLACK_ALLOW_BOT_TICKETS=true`** and **`SLACK_APP_ID`** to your Slack app’s ID so the service does not reply to its own posts.
 - **`VECTOR_BACKEND=local`**: Stores vectors in `LOCAL_VECTOR_PATH` (default `.data/sop-vectors.json`). Fine for moderate corpora; use **Pinecone** for large-scale or multi-instance deployments. Pinecone indexes must use **1536** dimensions for `text-embedding-3-small`.
 
 ## Scripts

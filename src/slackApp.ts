@@ -31,14 +31,33 @@ export function createSlackApp(): App {
 
   const supportChannel = config.slackSupportChannelId();
   const processThreadReplies = config.slackProcessThreadReplies();
+  const allowBotTickets = config.slackAllowBotTickets();
+  const ourAppId = config.slackAppId();
 
   app.message(async ({ message, client, logger }) => {
     try {
-      if ("subtype" in message && message.subtype) {
+      const subtype = "subtype" in message ? message.subtype : undefined;
+      if (subtype && subtype !== "bot_message") {
         return;
       }
+      if (subtype === "bot_message" && !allowBotTickets) {
+        return;
+      }
+
+      if (ourAppId && "app_id" in message && message.app_id === ourAppId) {
+        return;
+      }
+
       if (!("text" in message) || typeof message.text !== "string") return;
-      if ("bot_id" in message && message.bot_id) return;
+
+      if ("bot_id" in message && message.bot_id && !allowBotTickets) return;
+
+      if (
+        message.text.includes("Here are the most relevant SOPs:") ||
+        message.text.includes("No close SOP matches were found.")
+      ) {
+        return;
+      }
 
       const channel =
         "channel" in message && typeof message.channel === "string"
@@ -54,7 +73,7 @@ export function createSlackApp(): App {
           : undefined;
       if (threadTs && !processThreadReplies) return;
 
-      const text = message.text.replace(/<@[^>]+>/g, "").trim();
+      const text = message.text.trim();
       if (!text) return;
 
       const matches = await findTopSopsForTicketText(text);

@@ -28,17 +28,17 @@ Service that indexes Standard Operating Procedures from **Confluence** with **Op
 
    Or `npm run build && npm start`.
 
-### Manual ticket match (no Slack)
+### Manual ticket match (no Slack) — mock Slack from the console
 
-Use the same embedding + vector index as production, without installing the Slack app:
+Uses **`.data/sop-vectors.json`** and the same pipeline as the Slack bot. Commands **`npm run suggest`** and **`npm run match-ticket`** are the same script.
 
 1. Index SOPs once: `npm run index:sops`
-2. Run a ticket through the matcher (multi-line is easiest with a pipe or heredoc):
+2. Paste a fake ticket and see suggested SOP links:
 
    ```bash
-   pbpaste | npm run match-ticket
-   npm run match-ticket < ./ticket.txt
-   npm run match-ticket <<'EOF'
+   pbpaste | npm run suggest
+   npm run suggest < ./ticket.txt
+   npm run suggest <<'EOF'
    Urgency: high
    Team: CRM
    Summary: Example issue
@@ -46,7 +46,9 @@ Use the same embedding + vector index as production, without installing the Slac
    EOF
    ```
 
-   One line works too: `npm run match-ticket -- "short question here"`.
+   One line: `npm run suggest -- "short question here"`.
+
+   To print the **normalized text** sent to the embedder (debug): `DEBUG_TICKET_TEXT=1 npm run suggest -- "…"`.
 
 Only **`OPENAI_API_KEY`** (if using OpenAI embeddings) and vector settings (e.g. **`LOCAL_VECTOR_PATH`**) are required for this command; Slack and Confluence variables are not read unless you run indexing or the Slack server.
 
@@ -85,6 +87,6 @@ This project can use **[Ollama](https://ollama.com)** instead of the OpenAI API 
 | Script | Purpose |
 |--------|---------|
 | `npm run index:sops` | Full reindex from Confluence |
-| `npm run match-ticket` | Match pasted/piped ticket text to SOPs (no Slack) |
+| `npm run suggest` / `npm run match-ticket` | Mock Slack input in the terminal; print suggested SOP links |
 | `npm run dev` | Run Slack app with `tsx watch` |
 | `npm start` | Run compiled `dist/index.js` |

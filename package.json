@@ -1,0 +1,26 @@
+{
+  "name": "sop-helper",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "index:sops": "tsx src/cli/index-sops.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@pinecone-database/pinecone": "^4.0.0",
+    "@slack/bolt": "^4.2.0",
+    "dotenv": "^16.4.5",
+    "openai": "^4.73.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

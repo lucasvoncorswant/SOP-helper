@@ -68,7 +68,9 @@ This project can use **[Ollama](https://ollama.com)** instead of the OpenAI API 
    OLLAMA_EMBEDDING_MODEL=nomic-embed-text
    ```
 
-3. Run **`npm run index:sops` again** after switching (dimensions change vs OpenAI). If you use Pinecone, create an index whose dimension matches the model (e.g. **768** for `nomic-embed-text`, **1536** for `text-embedding-3-small`).
+3. **Keep Ollama running** (open the Ollama app or run `ollama serve`) while you index; otherwise you will see `ECONNREFUSED` on port **11434**.
+
+4. Run **`npm run index:sops` again** after switching (dimensions change vs OpenAI). If you use Pinecone, create an index whose dimension matches the model (e.g. **768** for `nomic-embed-text`, **1536** for `text-embedding-3-small`).
 
 ## Configuration notes
 

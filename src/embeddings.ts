@@ -25,11 +25,28 @@ async function embedTextsOllama(texts: string[]): Promise<number[][]> {
   const model = config.ollamaEmbeddingModel();
   const out: number[][] = [];
   for (const prompt of texts) {
-    const res = await fetch(`${base}/api/embeddings`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model, prompt }),
-    });
+    let res: Response;
+    try {
+      res = await fetch(`${base}/api/embeddings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model, prompt }),
+      });
+    } catch (e: unknown) {
+      const nested =
+        e && typeof e === "object" && "cause" in e
+          ? (e as { cause?: { code?: string } }).cause
+          : undefined;
+      if (
+        nested?.code === "ECONNREFUSED" ||
+        (e as { code?: string })?.code === "ECONNREFUSED"
+      ) {
+        throw new Error(
+          `Cannot connect to Ollama at ${base} (connection refused). Start the Ollama app, or run \`ollama serve\`, then \`ollama pull ${model}\`. To use OpenAI instead, set EMBEDDING_PROVIDER=openai and OPENAI_API_KEY in .env.`,
+        );
+      }
+      throw e;
+    }
     if (!res.ok) {
       const errText = await res.text();
       throw new Error(

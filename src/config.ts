@@ -11,9 +11,30 @@ function optional(name: string, defaultValue: string): string {
 }
 
 export const config = {
-  openaiApiKey: () => required("OPENAI_API_KEY"),
+  /**
+   * `openai` (default) uses OPENAI_API_KEY. `ollama` uses a local Ollama instance (no OpenAI bill).
+   * If you switch providers, re-run `npm run index:sops` — vector dimensions must match the model.
+   */
+  embeddingProvider: (): "openai" | "ollama" => {
+    const p = optional("EMBEDDING_PROVIDER", "openai").toLowerCase();
+    return p === "ollama" ? "ollama" : "openai";
+  },
+  openaiApiKey: (): string => {
+    const v = process.env.OPENAI_API_KEY?.trim();
+    if (config.embeddingProvider() === "openai" && !v) {
+      throw new Error(
+        "OPENAI_API_KEY is required when EMBEDDING_PROVIDER=openai (or set EMBEDDING_PROVIDER=ollama)",
+      );
+    }
+    return v ?? "";
+  },
   embeddingModel: () =>
     optional("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"),
+
+  ollamaBaseUrl: () => optional("OLLAMA_BASE_URL", "http://127.0.0.1:11434"),
+  /** e.g. nomic-embed-text (768-d); pull with: ollama pull nomic-embed-text */
+  ollamaEmbeddingModel: () =>
+    optional("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text"),
 
   confluenceBaseUrl: () => required("CONFLUENCE_BASE_URL"),
   confluenceEmail: () => required("CONFLUENCE_EMAIL"),

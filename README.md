@@ -48,7 +48,27 @@ Use the same embedding + vector index as production, without installing the Slac
 
    One line works too: `npm run match-ticket -- "short question here"`.
 
-Only **`OPENAI_API_KEY`** and vector settings (e.g. **`LOCAL_VECTOR_PATH`**) are required for this command; Slack and Confluence variables are not read unless you run indexing or the Slack server.
+Only **`OPENAI_API_KEY`** (if using OpenAI embeddings) and vector settings (e.g. **`LOCAL_VECTOR_PATH`**) are required for this command; Slack and Confluence variables are not read unless you run indexing or the Slack server.
+
+### Embeddings without OpenAI (Ollama, local / free)
+
+This project can use **[Ollama](https://ollama.com)** instead of the OpenAI API so you do not need OpenAI credits. **Cursor** is only an editor; it does not replace an embedding API for `npm run` commands.
+
+1. Install Ollama and pull an embedding model, for example:
+
+   ```bash
+   ollama pull nomic-embed-text
+   ```
+
+2. In `.env` set:
+
+   ```env
+   EMBEDDING_PROVIDER=ollama
+   # OPENAI_API_KEY not required for indexing/matching when using Ollama
+   OLLAMA_EMBEDDING_MODEL=nomic-embed-text
+   ```
+
+3. Run **`npm run index:sops` again** after switching (dimensions change vs OpenAI). If you use Pinecone, create an index whose dimension matches the model (e.g. **768** for `nomic-embed-text`, **1536** for `text-embedding-3-small`).
 
 ## Configuration notes
 
@@ -56,7 +76,7 @@ Only **`OPENAI_API_KEY`** and vector settings (e.g. **`LOCAL_VECTOR_PATH`**) are
 - **`SLACK_PROCESS_THREAD_REPLIES`**: Default `false` so only **top-level** messages are treated as new tickets. Set `true` to also match replies inside threads.
 - **Structured tickets**: Messages that look like “Request Tech Support” with `Urgency` / `Team` / `Summary` / `Description` are normalized before embedding so boilerplate does not dominate the match (the model sees mainly those fields).
 - **Workflow / bot posts**: If tickets are posted by Slack Workflow as `bot_message`, set **`SLACK_ALLOW_BOT_TICKETS=true`** and **`SLACK_APP_ID`** to your Slack app’s ID so the service does not reply to its own posts.
-- **`VECTOR_BACKEND=local`**: Stores vectors in `LOCAL_VECTOR_PATH` (default `.data/sop-vectors.json`). Fine for moderate corpora; use **Pinecone** for large-scale or multi-instance deployments. Pinecone indexes must use **1536** dimensions for `text-embedding-3-small`.
+- **`VECTOR_BACKEND=local`**: Stores vectors in `LOCAL_VECTOR_PATH` (default `.data/sop-vectors.json`). Fine for moderate corpora; use **Pinecone** for large-scale or multi-instance deployments. Pinecone index dimension must match the embedding model (e.g. **1536** for OpenAI `text-embedding-3-small`, **768** for Ollama `nomic-embed-text`).
 
 ## Scripts
 

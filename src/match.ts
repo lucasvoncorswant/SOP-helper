@@ -5,6 +5,10 @@ import {
   normalizeCosineForBlend,
 } from "./keyword.js";
 import { rerankWithCohere } from "./rerank.js";
+import {
+  extractTicketSemantics,
+  intentionObjectAlignment,
+} from "./ticketSemantics.js";
 import { normalizeTicketTextForEmbedding } from "./ticketText.js";
 import {
   createVectorStore,
@@ -22,14 +26,23 @@ function blendScores(
   cosineRaw: number,
   title: string,
   chunkBody: string,
-  query: string,
+  keywordQuery: string,
   weights: { vector: number; keyword: number },
 ): number {
   const vecN = normalizeCosineForBlend(cosineRaw);
   const body = chunkBody?.trim();
   if (!body) return vecN;
-  const kw = keywordSimilarity(query, docForScoring(title, body));
+  const kw = keywordSimilarity(keywordQuery, docForScoring(title, body));
   return weights.vector * vecN + weights.keyword * kw;
+}
+
+/** Blend dense+lexical score with intention/object fit (down-ranks wrong-action matches). */
+function applyIntentionObjectFit(
+  combined: number,
+  alignment: number,
+): number {
+  const mix = 0.28 + 0.72 * alignment;
+  return combined * mix;
 }
 
 function maxCosineByPage(hits: ChunkHit[]): Map<string, number> {
@@ -66,13 +79,27 @@ function orderPagesByFirstHit(
     });
     if (out.length >= topPages) break;
   }
+
+  out.sort((a, b) => {
+    const va = a.vectorSimilarity;
+    const vb = b.vectorSimilarity;
+    const hasA = typeof va === "number" && Number.isFinite(va);
+    const hasB = typeof vb === "number" && Number.isFinite(vb);
+    if (hasA && hasB && vb !== va) return vb - va;
+    if (hasA && !hasB) return -1;
+    if (!hasA && hasB) return 1;
+    if (b.score !== a.score) return b.score - a.score;
+    return a.title.localeCompare(b.title);
+  });
+
   return out;
 }
 
 export async function findTopSopsForTicketText(text: string): Promise<SopMatch[]> {
-  const q = normalizeTicketTextForEmbedding(text).trim();
-  if (!q) return [];
-  const queryVector = await embedQuery(q);
+  const qNorm = normalizeTicketTextForEmbedding(text).trim();
+  if (!qNorm) return [];
+  const sem = extractTicketSemantics(text);
+  const queryVector = await embedQuery(sem.embeddingQuery.trim());
   const store = await createVectorStore();
   const pool = config.retrievalPoolChunks();
   const weights = config.hybridWeights();
@@ -85,16 +112,24 @@ export async function findTopSopsForTicketText(text: string): Promise<SopMatch[]
   const rawHits = rawHitsAll.filter((h) => !excludedFolders.has(h.chunk.pageId));
   const semanticByPage = maxCosineByPage(rawHits);
 
-  const blended = rawHits.map((h) => ({
-    chunk: h.chunk,
-    combined: blendScores(
+  const blended = rawHits.map((h) => {
+    const base = blendScores(
       h.score,
       h.chunk.title,
       h.chunk.text,
-      q,
+      sem.keywordQuery,
       weights,
-    ),
-  }));
+    );
+    const alignment = intentionObjectAlignment(
+      sem,
+      h.chunk.title,
+      h.chunk.text || "",
+    );
+    return {
+      chunk: h.chunk,
+      combined: applyIntentionObjectFit(base, alignment),
+    };
+  });
 
   blended.sort((a, b) => b.combined - a.combined);
   const candidates = blended.slice(0, Math.max(1, rerankCap));
@@ -109,7 +144,7 @@ export async function findTopSopsForTicketText(text: string): Promise<SopMatch[]
       docForScoring(c.chunk.title, c.chunk.text || ""),
     );
     try {
-      const rr = await rerankWithCohere(q, docs, {
+      const rr = await rerankWithCohere(sem.embeddingQuery.trim(), docs, {
         apiKey: cohereKey,
         model: config.cohereRerankModel(),
         topN: docs.length,

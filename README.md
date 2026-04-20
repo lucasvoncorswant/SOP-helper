@@ -82,6 +82,16 @@ This project can use **[Ollama](https://ollama.com)** instead of the OpenAI API 
 - **Workflow / bot posts**: If tickets are posted by Slack Workflow as `bot_message`, set **`SLACK_ALLOW_BOT_TICKETS=true`** and **`SLACK_APP_ID`** to your Slack app’s ID so the service does not reply to its own posts.
 - **`VECTOR_BACKEND=local`**: Stores vectors in `LOCAL_VECTOR_PATH` (default `.data/sop-vectors.json`). Fine for moderate corpora; use **Pinecone** for large-scale or multi-instance deployments. Pinecone index dimension must match the embedding model (e.g. **1536** for OpenAI `text-embedding-3-small`, **768** for Ollama `nomic-embed-text`).
 
+### Ticket intention and object (structured requests)
+
+For tickets with **Urgency / Team / Summary / Description** (or “Request Tech Support” style), the matcher:
+
+1. **Builds a richer embedding query** — e.g. “Primary actions requested: update … Subject / records involved: phone number, customer …” so dense search targets the *task*, not only raw field text.
+2. **Detects action families** (update, debug, logs, reset/access, etc.) and **object terms** (phrases like `phone number`, plus salient tokens from Summary).
+3. **Re-scores** each candidate chunk with an **intention/object alignment** (combined with hybrid vector+keyword scores): SOPs that match the requested action rank higher; pure “debug/PII logs” or “password reset” guides can rank lower when the ticket is clearly about **updating** CRM **phone** data, even if those docs mention “phone” in another sense.
+
+Unstructured one-line questions still work; they skip the structured heuristics when no clear intentions/objects are found.
+
 ### Retrieval quality (chunking, hybrid, rerank, threshold)
 
 Defaults aim for sharper matches than vector-only search at the same embedding model:

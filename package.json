@@ -9,7 +9,9 @@
     "dev": "tsx watch src/index.ts",
     "index:sops": "tsx src/cli/index-sops.ts",
     "match-ticket": "tsx src/cli/match-ticket.ts",
-    "suggest": "tsx src/cli/match-ticket.ts"
+    "suggest": "tsx src/cli/match-ticket.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "engines": {
     "node": ">=20"
@@ -23,6 +25,7 @@
   "devDependencies": {
     "@types/node": "^22.10.1",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^3.0.5"
   }
 }

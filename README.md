@@ -88,5 +88,7 @@ This project can use **[Ollama](https://ollama.com)** instead of the OpenAI API 
 |--------|---------|
 | `npm run index:sops` | Full reindex from Confluence |
 | `npm run suggest` / `npm run match-ticket` | Mock Slack input in the terminal; print suggested SOP links |
+| `npm test` | Unit tests ([Vitest](https://vitest.dev/)) |
+| `npm run test:watch` | Re-run tests on file changes |
 | `npm run dev` | Run Slack app with `tsx watch` |
 | `npm start` | Run compiled `dist/index.js` |

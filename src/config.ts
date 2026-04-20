@@ -80,7 +80,44 @@ export const config = {
   localVectorPath: () =>
     optional("LOCAL_VECTOR_PATH", ".data/sop-vectors.json"),
 
-  chunkSizeChars: () => parseInt(optional("CHUNK_SIZE_CHARS", "3500"), 10),
-  chunkOverlapChars: () => parseInt(optional("CHUNK_OVERLAP_CHARS", "400"), 10),
+  /** Smaller chunks (vs very large pages) improve embedding precision; reindex after changing. */
+  chunkSizeChars: () => parseInt(optional("CHUNK_SIZE_CHARS", "1200"), 10),
+  chunkOverlapChars: () => parseInt(optional("CHUNK_OVERLAP_CHARS", "200"), 10),
   topK: () => parseInt(optional("TOP_K_SOPS", "3"), 10),
+
+  /** How many chunk vectors to retrieve before hybrid + rerank (higher = slower, better recall). */
+  retrievalPoolChunks: () =>
+    parseInt(optional("RETRIEVAL_POOL_CHUNKS", "48"), 10),
+
+  /** Top hybrid-scored chunks sent to Cohere rerank (when enabled). */
+  rerankCandidateChunks: () =>
+    parseInt(optional("RERANK_CANDIDATE_CHUNKS", "30"), 10),
+
+  /** Weights for vector vs keyword; normalized to sum to 1. */
+  hybridWeights: (): { vector: number; keyword: number } => {
+    const v = parseFloat(optional("HYBRID_VECTOR_WEIGHT", "0.65"));
+    const k = parseFloat(optional("HYBRID_KEYWORD_WEIGHT", "0.35"));
+    const sum = v + k;
+    if (!Number.isFinite(sum) || sum <= 0) return { vector: 0.65, keyword: 0.35 };
+    return { vector: v / sum, keyword: k / sum };
+  },
+
+  rerankProvider: (): "none" | "cohere" => {
+    const p = optional("RERANK_PROVIDER", "none").toLowerCase();
+    return p === "cohere" ? "cohere" : "none";
+  },
+  cohereApiKey: () => process.env.COHERE_API_KEY?.trim() ?? "",
+  cohereRerankModel: () =>
+    optional("COHERE_RERANK_MODEL", "rerank-english-v3.0"),
+
+  /**
+   * Drop matches below this final score (0–1). 0 = disabled.
+   * After hybrid-only: uses blended score. After Cohere rerank: uses relevance_score.
+   */
+  minMatchScore: (): number => {
+    const raw = process.env.MIN_MATCH_SCORE?.trim();
+    if (!raw) return 0;
+    const v = parseFloat(raw);
+    return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0;
+  },
 };

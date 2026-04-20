@@ -17,11 +17,20 @@ export type IndexedChunk = {
   title: string;
   url: string;
   chunkIndex: number;
+  /** Raw body slice for keyword overlap + rerank (reindex if missing from older indexes). */
+  text: string;
+};
+
+export type ChunkHit = {
+  chunk: IndexedChunk;
+  score: number;
 };
 
 export interface VectorStore {
   clear(): Promise<void>;
   upsertChunks(chunks: IndexedChunk[]): Promise<void>;
+  /** Top-N chunks by cosine similarity (before hybrid / rerank). */
+  queryTopChunks(queryVector: number[], limit: number): Promise<ChunkHit[]>;
   queryTopPages(queryVector: number[], topPages: number): Promise<SopMatch[]>;
 }
 
@@ -37,6 +46,13 @@ function cosineSimilarity(a: number[], b: number[]): number {
   }
   const denom = Math.sqrt(na) * Math.sqrt(nb);
   return denom === 0 ? 0 : dot / denom;
+}
+
+const PINECONE_METADATA_TEXT_MAX = 36_000;
+
+function truncateForPineconeMetadata(text: string): string {
+  if (text.length <= PINECONE_METADATA_TEXT_MAX) return text;
+  return text.slice(0, PINECONE_METADATA_TEXT_MAX);
 }
 
 function dedupeTopPages(
@@ -100,20 +116,39 @@ export class LocalJsonVectorStore implements VectorStore {
     await this.save();
   }
 
-  async queryTopPages(queryVector: number[], topPages: number): Promise<SopMatch[]> {
+  async queryTopChunks(queryVector: number[], limit: number): Promise<ChunkHit[]> {
     await this.load();
-    const chunkTop = Math.min(this.chunks.length, Math.max(topPages * 8, topPages));
-    const scored = this.chunks
-      .map((c) => ({
-        score: cosineSimilarity(queryVector, c.vector),
-        pageId: c.pageId,
-        title: c.title,
-        url: c.url,
-      }))
+    const n = Math.min(this.chunks.length, Math.max(1, limit));
+    return this.chunks
+      .map((c) => {
+        const chunk = migrateChunk(c);
+        return {
+          chunk,
+          score: cosineSimilarity(queryVector, chunk.vector),
+        };
+      })
       .sort((a, b) => b.score - a.score)
-      .slice(0, chunkTop);
+      .slice(0, n);
+  }
+
+  async queryTopPages(queryVector: number[], topPages: number): Promise<SopMatch[]> {
+    const chunkTop = Math.max(topPages * 8, topPages);
+    const hits = await this.queryTopChunks(queryVector, chunkTop);
+    const scored = hits.map((h) => ({
+      score: h.score,
+      pageId: h.chunk.pageId,
+      title: h.chunk.title,
+      url: h.chunk.url,
+    }));
     return dedupeTopPages(scored, topPages);
   }
+}
+
+function migrateChunk(c: IndexedChunk): IndexedChunk {
+  return {
+    ...c,
+    text: typeof c.text === "string" ? c.text : "",
+  };
 }
 
 export class PineconeVectorStore implements VectorStore {
@@ -157,14 +192,15 @@ export class PineconeVectorStore implements VectorStore {
             title: c.title,
             url: c.url,
             chunkIndex: c.chunkIndex,
+            text: truncateForPineconeMetadata(c.text ?? ""),
           },
         })),
       );
     }
   }
 
-  async queryTopPages(queryVector: number[], topPages: number): Promise<SopMatch[]> {
-    const topK = Math.max(topPages * 8, topPages);
+  async queryTopChunks(queryVector: number[], limit: number): Promise<ChunkHit[]> {
+    const topK = Math.max(1, limit);
     const res = await this
       .index()
       .namespace(this.namespace)
@@ -174,14 +210,34 @@ export class PineconeVectorStore implements VectorStore {
         includeMetadata: true,
       });
 
-    const scored =
-      res.matches?.map((m) => ({
-        score: m.score ?? 0,
-        pageId: String(m.metadata?.pageId ?? ""),
-        title: String(m.metadata?.title ?? "Untitled"),
-        url: String(m.metadata?.url ?? ""),
-      })) ?? [];
+    const matches = res.matches ?? [];
+    return matches.map((m) => {
+      const meta = m.metadata ?? {};
+      const chunk: IndexedChunk = {
+        id: String(m.id ?? ""),
+        vector: [],
+        pageId: String(meta.pageId ?? ""),
+        title: String(meta.title ?? "Untitled"),
+        url: String(meta.url ?? ""),
+        chunkIndex:
+          typeof meta.chunkIndex === "number"
+            ? meta.chunkIndex
+            : parseInt(String(meta.chunkIndex ?? "0"), 10),
+        text: typeof meta.text === "string" ? meta.text : "",
+      };
+      return { chunk, score: m.score ?? 0 };
+    });
+  }
 
+  async queryTopPages(queryVector: number[], topPages: number): Promise<SopMatch[]> {
+    const chunkTop = Math.max(topPages * 8, topPages);
+    const hits = await this.queryTopChunks(queryVector, chunkTop);
+    const scored = hits.map((h) => ({
+      score: h.score,
+      pageId: h.chunk.pageId,
+      title: h.chunk.title,
+      url: h.chunk.url,
+    }));
     return dedupeTopPages(scored, topPages);
   }
 }

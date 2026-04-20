@@ -43,6 +43,7 @@ export async function indexAllSopsFromConfluence(): Promise<{
           title: p.title,
           url: p.webUrl,
           chunkIndex: ch.chunkIndex,
+          text: ch.text,
         });
       }
     }
@@ -83,6 +84,7 @@ export async function indexPages(pages: ConfluencePage[]): Promise<void> {
         title: p.title,
         url: p.webUrl,
         chunkIndex: ch.chunkIndex,
+        text: ch.text,
       });
     }
   }

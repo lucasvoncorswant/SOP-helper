@@ -82,6 +82,16 @@ This project can use **[Ollama](https://ollama.com)** instead of the OpenAI API 
 - **Workflow / bot posts**: If tickets are posted by Slack Workflow as `bot_message`, set **`SLACK_ALLOW_BOT_TICKETS=true`** and **`SLACK_APP_ID`** to your Slack app’s ID so the service does not reply to its own posts.
 - **`VECTOR_BACKEND=local`**: Stores vectors in `LOCAL_VECTOR_PATH` (default `.data/sop-vectors.json`). Fine for moderate corpora; use **Pinecone** for large-scale or multi-instance deployments. Pinecone index dimension must match the embedding model (e.g. **1536** for OpenAI `text-embedding-3-small`, **768** for Ollama `nomic-embed-text`).
 
+### Retrieval quality (chunking, hybrid, rerank, threshold)
+
+Defaults aim for sharper matches than vector-only search at the same embedding model:
+
+- **Chunking**: `CHUNK_SIZE_CHARS` defaults to **1200** (was 3500) with **200** overlap. Indexing still prepends **Title:** to each chunk at embed time (same as before). **Re-run `npm run index:sops`** after changing chunk settings. Chunks now store body text for keyword overlap and optional reranking.
+- **Hybrid**: `HYBRID_VECTOR_WEIGHT` / `HYBRID_KEYWORD_WEIGHT` (default **0.65** / **0.35**) blend cosine similarity with a lexical overlap score (Dice on tokens, English stopwords removed).
+- **Rerank**: Set **`RERANK_PROVIDER=cohere`** and **`COHERE_API_KEY`** to run [Cohere Rerank](https://docs.cohere.com/reference/rerank) on the top hybrid candidates (`RERANK_CANDIDATE_CHUNKS`, default **30**). If unset or on error, results use hybrid scores only.
+- **Minimum score**: **`MIN_MATCH_SCORE`** (0–1, default **unset** = no filter) drops weak hits. With rerank, the score is Cohere’s `relevance_score`; without rerank, it is the hybrid blend. Tune on your own tickets.
+- **Recall**: **`RETRIEVAL_POOL_CHUNKS`** (default **48**) is how many chunk vectors are considered before hybrid scoring.
+
 ## Scripts
 
 | Script | Purpose |

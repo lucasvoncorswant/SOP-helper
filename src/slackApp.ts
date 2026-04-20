@@ -1,20 +1,15 @@
 import { App } from "@slack/bolt";
 import { config } from "./config.js";
 import { findTopSopsForTicketText } from "./match.js";
+import { similarityPercentValue } from "./scoreDisplay.js";
+import type { SopMatch } from "./vectorStore.js";
 
-function matchPercent(score: number): string {
-  if (score >= 0 && score <= 1) {
-    return (score * 100).toFixed(1);
-  }
-  return (((score + 1) / 2) * 100).toFixed(1);
-}
-
-function formatReply(matches: Array<{ title: string; url: string; score: number }>): string {
+function formatReply(matches: SopMatch[]): string {
   if (matches.length === 0) {
     return "No close SOP matches were found. Try rephrasing or check Confluence labels/CQL for indexing.";
   }
   const lines = matches.map((m, i) => {
-    const pct = matchPercent(m.score);
+    const pct = similarityPercentValue(m).toFixed(1);
     return `${i + 1}. *${m.title}* (~${pct}% similarity)\n   ${m.url}`;
   });
   return `Here are the most relevant SOPs:\n\n${lines.join("\n\n")}`;

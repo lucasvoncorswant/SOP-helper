@@ -7,7 +7,10 @@ export type SopMatch = {
   pageId: string;
   title: string;
   url: string;
+  /** Hybrid / rerank score used for ordering and `MIN_MATCH_SCORE`. */
   score: number;
+  /** Best chunk-level cosine vs the query (semantic similarity); use for UI % when set. */
+  vectorSimilarity?: number;
 };
 
 export type IndexedChunk = {

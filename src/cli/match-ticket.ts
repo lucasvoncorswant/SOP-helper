@@ -5,14 +5,8 @@
 import "dotenv/config";
 import { findTopSopsForTicketText } from "../match.js";
 import { config } from "../config.js";
+import { similarityPercentValue } from "../scoreDisplay.js";
 import { normalizeTicketTextForEmbedding } from "../ticketText.js";
-
-function formatSimilarity(score: number): string {
-  if (score >= 0 && score <= 1) {
-    return (score * 100).toFixed(1);
-  }
-  return (((score + 1) / 2) * 100).toFixed(1);
-}
 
 async function readStdinIfPiped(): Promise<string> {
   if (process.stdin.isTTY) return "";
@@ -58,7 +52,7 @@ async function main(): Promise<void> {
 
   for (let i = 0; i < matches.length; i++) {
     const m = matches[i];
-    const sim = formatSimilarity(m.score);
+    const sim = similarityPercentValue(m).toFixed(1);
     console.log(`${i + 1}. ${m.title}`);
     console.log(`   Similarity: ~${sim}%`);
     console.log(`   ${m.url}`);

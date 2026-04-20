@@ -54,6 +54,20 @@ export const config = {
       .filter((id) => /^\d+$/.test(id));
   },
 
+  /**
+   * Confluence “folder” / navigation pages to omit from the vector index and from matches.
+   * Includes every ID in `CONFLUENCE_SOP_ROOT_PAGE_IDS` (scope roots are containers; real SOPs are children).
+   * Optional `EXCLUDE_FROM_MATCH_PAGE_IDS` adds more numeric page IDs (e.g. nested folder stubs).
+   */
+  matchExcludedFolderPageIds: (): Set<string> => {
+    const roots = config.confluenceSopRootPageIds();
+    const extra =
+      process.env.EXCLUDE_FROM_MATCH_PAGE_IDS?.split(",")
+        .map((s) => s.trim())
+        .filter((id) => /^\d+$/.test(id)) ?? [];
+    return new Set([...roots, ...extra]);
+  },
+
   slackBotToken: () => required("SLACK_BOT_TOKEN"),
   slackSigningSecret: () => required("SLACK_SIGNING_SECRET"),
   slackAppToken: () => process.env.SLACK_APP_TOKEN,

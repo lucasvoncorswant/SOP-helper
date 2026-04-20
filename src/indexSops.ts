@@ -20,11 +20,15 @@ export async function indexAllSopsFromConfluence(): Promise<{
   const pages = await fetchSopPages();
   const store = await createVectorStore();
   await store.clear();
+  const skipPages = config.matchExcludedFolderPageIds();
 
   let chunkCount = 0;
+  let indexedPageCount = 0;
   const allChunks: IndexedChunk[] = [];
 
   for (const p of pages) {
+    if (skipPages.has(p.id)) continue;
+    indexedPageCount += 1;
     const chunks = chunkPageText(p.id, p.bodyText);
     const inputs = chunks.map((c) =>
       embeddingInputForChunk(p.title, c.text),
@@ -51,7 +55,7 @@ export async function indexAllSopsFromConfluence(): Promise<{
   }
 
   await upsertInBatches(store, allChunks);
-  return { pageCount: pages.length, chunkCount };
+  return { pageCount: indexedPageCount, chunkCount };
 }
 
 async function upsertInBatches(
@@ -68,8 +72,10 @@ async function upsertInBatches(
 export async function indexPages(pages: ConfluencePage[]): Promise<void> {
   const store = await createVectorStore();
   await store.clear();
+  const skipPages = config.matchExcludedFolderPageIds();
   const allChunks: IndexedChunk[] = [];
   for (const p of pages) {
+    if (skipPages.has(p.id)) continue;
     const chunks = chunkPageText(p.id, p.bodyText);
     const inputs = chunks.map((c) =>
       embeddingInputForChunk(p.title, c.text),

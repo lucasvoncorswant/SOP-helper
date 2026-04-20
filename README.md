@@ -11,7 +11,7 @@ Service that indexes Standard Operating Procedures from **Confluence** with **Op
 ## Setup
 
 1. Copy `.env.example` to `.env` and fill in values (see inline comments).
-2. **Confluence**: use an API token tied to your Atlassian account; set `CONFLUENCE_SOP_CQL` to match only SOP pages (labels, space, etc.). Optionally set **`CONFLUENCE_SOP_ROOT_PAGE_IDS`** to one or more numeric **folder** page IDs (from the page URL or page info) to index only that page and everything nested under it (all subfolders).
+2. **Confluence**: use an API token tied to your Atlassian account; set `CONFLUENCE_SOP_CQL` to match only SOP pages (labels, space, etc.). Optionally set **`CONFLUENCE_SOP_ROOT_PAGE_IDS`** to one or more numeric **folder** page IDs (from the page URL or page info) to index only that page and everything nested under it (all subfolders). **Those root folder pages are not indexed or ranked**—only descendant pages are—so you do not get duplicate hits for the folder and the SOP inside it. Use **`EXCLUDE_FROM_MATCH_PAGE_IDS`** for any other navigation-only page IDs (e.g. nested folders).
 3. **Slack app**: install to workspace; enable **Socket Mode** for local runs (add `SLACK_APP_TOKEN`). Grant bot scopes such as `channels:history` (or `groups:history` for private channels), `chat:write`, and subscribe to **`message.channels`** (and/or `message.groups` for private channels) under **Event Subscriptions**.
 4. **Index once** (or on a schedule in production):
 
@@ -90,6 +90,7 @@ Defaults aim for sharper matches than vector-only search at the same embedding m
 - **Hybrid**: `HYBRID_VECTOR_WEIGHT` / `HYBRID_KEYWORD_WEIGHT` (default **0.65** / **0.35**) blend cosine similarity with a lexical overlap score (Dice on tokens, English stopwords removed).
 - **Rerank**: Set **`RERANK_PROVIDER=cohere`** and **`COHERE_API_KEY`** to run [Cohere Rerank](https://docs.cohere.com/reference/rerank) on the top hybrid candidates (`RERANK_CANDIDATE_CHUNKS`, default **30**). If unset or on error, results use hybrid scores only.
 - **Minimum score**: **`MIN_MATCH_SCORE`** (0–1, default **unset** = no filter) drops weak hits. With rerank, the score is Cohere’s `relevance_score`; without rerank, it is the hybrid blend. Tune on your own tickets.
+- **What Slack/CLI show as %**: the **semantic (vector) cosine** for the best matching chunk on that page, not the hybrid/rerank score—so the percentage stays comparable to “classic” embedding similarity while ranking still uses hybrid + optional rerank.
 - **Recall**: **`RETRIEVAL_POOL_CHUNKS`** (default **48**) is how many chunk vectors are considered before hybrid scoring.
 
 ## Scripts

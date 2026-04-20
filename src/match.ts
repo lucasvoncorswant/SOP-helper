@@ -8,6 +8,7 @@ import { rerankWithCohere } from "./rerank.js";
 import { normalizeTicketTextForEmbedding } from "./ticketText.js";
 import {
   createVectorStore,
+  type ChunkHit,
   type IndexedChunk,
   type SopMatch,
 } from "./vectorStore.js";
@@ -31,10 +32,22 @@ function blendScores(
   return weights.vector * vecN + weights.keyword * kw;
 }
 
+function maxCosineByPage(hits: ChunkHit[]): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const h of hits) {
+    const prev = m.get(h.chunk.pageId);
+    if (prev === undefined || h.score > prev) {
+      m.set(h.chunk.pageId, h.score);
+    }
+  }
+  return m;
+}
+
 function orderPagesByFirstHit(
   ordered: Array<{ chunk: IndexedChunk; score: number }>,
   topPages: number,
   minScore: number,
+  semanticByPage: Map<string, number>,
 ): SopMatch[] {
   const seen = new Set<string>();
   const out: SopMatch[] = [];
@@ -42,11 +55,14 @@ function orderPagesByFirstHit(
     if (minScore > 0 && row.score < minScore) continue;
     if (seen.has(row.chunk.pageId)) continue;
     seen.add(row.chunk.pageId);
+    const pid = row.chunk.pageId;
+    const vectorSim = semanticByPage.get(pid);
     out.push({
-      pageId: row.chunk.pageId,
+      pageId: pid,
       title: row.chunk.title,
       url: row.chunk.url,
       score: row.score,
+      vectorSimilarity: vectorSim,
     });
     if (out.length >= topPages) break;
   }
@@ -64,7 +80,10 @@ export async function findTopSopsForTicketText(text: string): Promise<SopMatch[]
   const topK = config.topK();
   const minScore = config.minMatchScore();
 
-  const rawHits = await store.queryTopChunks(queryVector, pool);
+  const excludedFolders = config.matchExcludedFolderPageIds();
+  const rawHitsAll = await store.queryTopChunks(queryVector, pool);
+  const rawHits = rawHitsAll.filter((h) => !excludedFolders.has(h.chunk.pageId));
+  const semanticByPage = maxCosineByPage(rawHits);
 
   const blended = rawHits.map((h) => ({
     chunk: h.chunk,
@@ -116,5 +135,5 @@ export async function findTopSopsForTicketText(text: string): Promise<SopMatch[]
     }));
   }
 
-  return orderPagesByFirstHit(ordered, topK, minScore);
+  return orderPagesByFirstHit(ordered, topK, minScore, semanticByPage);
 }

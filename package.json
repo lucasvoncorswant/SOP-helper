@@ -5,11 +5,11 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "tsx watch src/index.ts",
-    "index:sops": "tsx src/cli/index-sops.ts",
-    "match-ticket": "tsx src/cli/match-ticket.ts",
-    "suggest": "tsx src/cli/match-ticket.ts",
+    "start": "doppler run -- node dist/index.js",
+    "dev": "doppler run -- tsx watch src/index.ts",
+    "index:sops": "doppler run -- tsx src/cli/index-sops.ts",
+    "match-ticket": "doppler run -- tsx src/cli/match-ticket.ts",
+    "suggest": "doppler run -- tsx src/cli/match-ticket.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },

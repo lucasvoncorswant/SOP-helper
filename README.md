@@ -10,17 +10,46 @@ Service that indexes Standard Operating Procedures from **Confluence** with **Op
 
 ## Setup
 
-1. Copy `.env.example` to `.env` and fill in values (see inline comments).
-2. **Confluence**: use an API token tied to your Atlassian account; set `CONFLUENCE_SOP_CQL` to match only SOP pages (labels, space, etc.). Optionally set **`CONFLUENCE_SOP_ROOT_PAGE_IDS`** to one or more numeric **folder** page IDs (from the page URL or page info) to index only that page and everything nested under it (all subfolders). **Those root folder pages are not indexed or ranked**—only descendant pages are—so you do not get duplicate hits for the folder and the SOP inside it. Use **`EXCLUDE_FROM_MATCH_PAGE_IDS`** for any other navigation-only page IDs (e.g. nested folders).
-3. **Slack app**: install to workspace; enable **Socket Mode** for local runs (add `SLACK_APP_TOKEN`). Grant bot scopes such as `channels:history` (or `groups:history` for private channels), `chat:write`, and subscribe to **`message.channels`** (and/or `message.groups` for private channels) under **Event Subscriptions**.
-4. **Index once** (or on a schedule in production):
+### Secrets (Doppler)
+
+Secrets are managed with [Doppler](https://www.doppler.com). No `.env` file with real tokens should exist locally.
+
+1. Install the Doppler CLI and log in:
+
+   ```bash
+   brew install dopplerhq/cli/doppler
+   doppler login
+   ```
+
+2. Link your local clone to the project:
+
+   ```bash
+   doppler setup   # select project: sop-helper, environment: dev
+   ```
+
+   That's it — `npm run dev`, `npm run index:sops`, etc. all inject secrets automatically via `doppler run --`.
+
+> **First-time project setup (admin only):** create the project, import secrets, then invite teammates.
+> ```bash
+> doppler projects create sop-helper
+> doppler setup
+> grep -E '^[A-Z_]+=' .env > .env.clean && doppler secrets upload .env.clean && rm .env.clean
+> ```
+
+If you need a local `.env` fallback (e.g. CI without Doppler), copy `.env.example` and fill in values — it is gitignored and never committed.
+
+### Services
+
+1. **Confluence**: use an API token tied to your Atlassian account; set `CONFLUENCE_SOP_CQL` to match only SOP pages (labels, space, etc.). Optionally set **`CONFLUENCE_SOP_ROOT_PAGE_IDS`** to one or more numeric **folder** page IDs (from the page URL or page info) to index only that page and everything nested under it (all subfolders). **Those root folder pages are not indexed or ranked**—only descendant pages are—so you do not get duplicate hits for the folder and the SOP inside it. Use **`EXCLUDE_FROM_MATCH_PAGE_IDS`** for any other navigation-only page IDs (e.g. nested folders).
+2. **Slack app**: install to workspace; enable **Socket Mode** for local runs (add `SLACK_APP_TOKEN`). Grant bot scopes such as `channels:history` (or `groups:history` for private channels), `chat:write`, and subscribe to **`message.channels`** (and/or `message.groups` for private channels) under **Event Subscriptions**.
+3. **Index once** (or on a schedule in production):
 
    ```bash
    npm install
    npm run index:sops
    ```
 
-5. **Run the bot**:
+4. **Run the bot**:
 
    ```bash
    npm run dev
@@ -62,12 +91,10 @@ This project can use **[Ollama](https://ollama.com)** instead of the OpenAI API 
    ollama pull nomic-embed-text
    ```
 
-2. In `.env` set:
+2. Set the vars in Doppler (or `.env` for local fallback):
 
-   ```env
-   EMBEDDING_PROVIDER=ollama
-   # OPENAI_API_KEY not required for indexing/matching when using Ollama
-   OLLAMA_EMBEDDING_MODEL=nomic-embed-text
+   ```bash
+   doppler secrets set EMBEDDING_PROVIDER=ollama OLLAMA_EMBEDDING_MODEL=nomic-embed-text
    ```
 
 3. **Keep Ollama running** (open the Ollama app or run `ollama serve`) while you index; otherwise you will see `ECONNREFUSED` on port **11434**.
